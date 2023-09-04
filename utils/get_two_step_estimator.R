@@ -108,6 +108,7 @@ get_two_step_estimator_poisson = function (get_h0, get_h, beta0_initial, beta_in
                 M_N_Inverse = t(solve(t(M_N), T_2))
             }
             
+            if(sampling_type!=5){
             numerators = rep(0, N)
             denominator = 0
             for (i in 1:N) {
@@ -135,7 +136,54 @@ get_two_step_estimator_poisson = function (get_h0, get_h, beta0_initial, beta_in
                 w[i] = min((1-rho) * n * numerators[i] / denominator + rho * n / N, 1)
             }
             idx = (1:N)[rbinom(N, rep(1, N), w) == 1]
-            return (get_MLE(get_h0, get_h, beta0_initial, beta_initial, rbind(pilot_data, full_data[idx, ]), model_type, c(rep((n0+n)/N, nrow(pilot_data)), (n0+n) / n * w[idx])))
+            beta_result = get_MLE(get_h0, get_h, beta0_initial, beta_initial, rbind(pilot_data, full_data[idx, ]), model_type, c(rep((n0+n)/N, nrow(pilot_data)), (n0+n) / n * w[idx]))
+            }else if(sampling_type==5){
+                M_N = matrix(0, nrow=p, ncol=p)
+                for (i in 1:N) {
+                    x = full_data[i, 1:d]
+                    y = as.integer(full_data[i, d+1])
+                    h0 = get_h0(x)
+                    h = get_h(x)
+                    M_N = M_N + get_second_derivatives(h0, beta_0_pilot, h, beta_pilot, model_type, y)
+                }
+                M_N = M_N / N
+                M_N_Inverse = solve(M_N)
+                
+                numerators = rep(0, N)
+                for (i in 1:N) {
+                    x = full_data[i, 1:d]
+                    y = as.integer(full_data[i, d+1])
+                    h0 = get_h0(x)
+                    h = get_h(x)
+                    numerators[i] = sqrt(sum((M_N_Inverse %*% get_first_derivatives(h0, beta_0_pilot, h, beta_pilot, model_type, y))^2))
+                }
+                
+                w = w1 = rep(0, N)
+                
+                threshold = quantile(numerators,probs=0.99)
+                w[numerators<=threshold] <- (1-rho) * n * numerators[numerators<=threshold] / sum(numerators[numerators<=threshold]) + 
+                    rho * n / (sum(numerators<=threshold))
+                # for (i in (1:N)[numerators<=threshold]) {
+                #     # x = full_data[i, 1:d]
+                #     # y = as.integer(full_data[i, d+1])
+                #     # h0 = get_h0(x)
+                #     # h = get_h(x)
+                #     w[i] = min((1-rho) * n * numerators[i] / sum(numerators[numerators<=threshold]) + 
+                #                    rho * n / (sum(numerators<=threshold)), 1)
+                # }
+                idx1 = (1:N)[rbinom(N, rep(1, N), w) == 1]
+                # for (i in (1:N)[numerators>threshold]) {
+                #     x = full_data[i, 1:d]
+                #     y = as.integer(full_data[i, d+1])
+                #     h0 = get_h0(x)
+                #     h = get_h(x)
+                #     w1[i] = min((1-rho) * n*sum(numerators>threshold)/N * numerators[i] / sum(numerators[numerators>threshold]) + 
+                #                    rho * n /sum(numerators>threshold)  *sum(numerators>threshold)/N, 1)
+                # }
+                # idx2 = (1:N)[rbinom(N, rep(1, N), w1) == 1]
+                beta_result = get_MLE(get_h0, get_h, beta0_initial, beta_initial, rbind(pilot_data, full_data[c(idx1), ]), model_type, c(rep((n0+n)/N, nrow(pilot_data)), (n0+n) / n * w[idx1]))
+            }
+            return (beta_result)
         },
         error = function (e) {
             print(e)

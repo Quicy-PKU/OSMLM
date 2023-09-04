@@ -12,9 +12,9 @@ get_MLE = function (get_h0, get_h, beta0_initial, beta_initial, data, model_type
     p = indices[length(indices)] - 1
     beta0 = beta0_initial
     beta = beta_initial
-    if (length(w) != 0) {
-        w = w / sum(w)
-    }
+    # if (length(w) != 0) {
+    #     w = w / sum(w)
+    # }
     error_flag = F
     for (iter in 1:maxiter) {
         first_derivatives = rep(0, p)
